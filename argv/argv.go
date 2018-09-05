@@ -1,9 +1,9 @@
 package argv
 
 import (
+	"errors"
+	"fmt"
 	"strings"
-
-	"github.com/gokit/errors"
 )
 
 // Argv represents a parsed argument with main name
@@ -14,6 +14,11 @@ type Argv struct {
 	Sub   *Argv
 	Text  string
 	Pairs map[string][]string
+}
+
+// New returns a new instance of Argv.
+func New(name string) *Argv {
+	return &Argv{Name: name}
 }
 
 // HasKV returns true/false if giving key exists.
@@ -140,7 +145,7 @@ func parseArgs(args []string) (Argv, error) {
 		// if we have a flag and a equal (=) sign, then it
 		// expects a value.
 		if key != "" && hasEq && len(values) == 0 {
-			return argd, errors.New("flag %q has no provided value", opt)
+			return argd, fmt.Errorf("flag %q has no provided value", opt)
 		}
 
 		// If we have a flag and there was an eq sign, then its a multi value

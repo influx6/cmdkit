@@ -8,9 +8,12 @@ func main() {
 		cmdkit.IntFlag(cmdkit.FlagName("age")),
 		cmdkit.StringFlag(cmdkit.FlagName("name")),
 	), cmdkit.Commands(
-		cmdkit.Cmd("add", cmdkit.WithAction(func(ctx cmdkit.Context) error {
-			fmt.Printf("Welcome to add: %q -> %d \n", ctx.String("name"), ctx.Int("age"))
-			return nil
-		})),
+		cmdkit.Cmd(
+			"add",
+			cmdkit.Desc("displays a add message"),
+			cmdkit.WithAction(func(ctx cmdkit.Context) error {
+				fmt.Printf("Welcome to add: %q -> %d \n", ctx.String("name"), ctx.Int("age"))
+				return nil
+			})),
 	))
 }

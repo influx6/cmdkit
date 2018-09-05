@@ -22,22 +22,32 @@ const (
 	usageTml = `Usage: {{ toLower .Title}} [flags] [command] 
 
 ⡿ COMMANDS:{{ range .Commands }}
+
 	⠙ {{toLower .Name }}        {{if isEmpty .ShortDesc }}{{cutoff .Desc 100 }}{{else}}{{cutoff .ShortDesc 100 }}{{end}}
 {{end}}
 ⡿ HELP:
-	Run [command] help
+	Run [command] --help to print this message
+	Run {{toLower .Title}} --flags to print all flags of all commands.
 
-⡿ OTHERS:
-	Run '{{toLower .Title}} flags' to print all flags of all commands.
+⡿ Flags:
+	{{ range $_, $fl := .Flags }}
+	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	{{end}}
 
 `
 	flagUsageTml = `Command: {{ toLower .Cmd.Name}} 
 
 ⡿ Flags:
 	{{$title := toLower .Title}}{{$cmdName := .Cmd.Name}}{{ range $_, $fl := .Cmd.Flags }}
-	⠙ {{toLower $fl.FlagName}}
-		 Default: {{.Default}}
-		 Desc: {{.Desc }}
+	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	{{end}}
+`
+
+	flagOnlyUsageTml = `Usage: {{ toLower .Title}}
+
+⡿ Flags:
+	{{ range $_, $fl := .Flags }}
+	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
 	{{end}}
 `
 
@@ -47,14 +57,12 @@ const (
 	{{.Cmd.Desc}}
 
 ⡿ HELP:
-	Run {{toLower .Cmd.Name}} help to print this message.
-	Run {{toLower .Cmd.Name}} [command] help to print help for sub command.
+	Run {{toLower .Cmd.Name}} --help to print this message.
+	Run {{toLower .Cmd.Name}} [command] --help to print help for sub command.
 
 ⡿ Flags:
 	{{$title := toLower .Title}}{{$cmdName := .Cmd.Name}}{{ range $_, $fl := .Cmd.Flags }}
-	⠙ {{toLower $fl.FlagName}}
-		 Default: {{.Default}}
-		 Desc: {{.Desc }}
+	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
 	{{end}}
 ⡿ Examples:
 	{{ range $_, $content := .Cmd.Usages }}
@@ -72,6 +80,7 @@ const (
 )
 
 var (
+	printFlag   = BoolFlag(FlagName("flags"))
 	helpFlag    = BoolFlag(FlagName("help"), FlagAlias("h"))
 	timeoutFlag = DurationFlag(FlagName("timeout"), FlagAlias("tm"))
 
@@ -125,9 +134,8 @@ type MorphFunction func(interface{}) (interface{}, error)
 type Flag interface {
 	FlagAlias() string
 	FlagName() string
-	GetValue() interface{}
-	Parse(string) error
 	DefaultValue() interface{}
+	Parse(string, ...string) (interface{}, error)
 }
 
 // FlagOption defines a function type which takes a giving flagimpl.
@@ -207,35 +215,29 @@ func (s *FlagImpl) FlagName() string {
 	return s.Name
 }
 
-// DefaultValue returns default value of flag pointer.
+// DefaultValue returns Default value of flag pointer.
 func (s *FlagImpl) DefaultValue() interface{} {
 	return s.Default
 }
 
-// GetValue returns internal value of flag pointer.
-func (s *FlagImpl) GetValue() interface{} {
-	return s.Value
-}
-
 // Parse sets the underline flag ready for value receiving.
-func (s *FlagImpl) Parse(m string) error {
-	value, err := s.Parser(m)
+func (s *FlagImpl) Parse(m string, rest ...string) (interface{}, error) {
+	if s.Validation != nil {
+		if err := s.Validation(m, rest...); err != nil {
+			return nil, err
+		}
+	}
+
+	value, err := s.Parser(m, rest...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if s.Morph == nil {
-		s.Value = value
-		return nil
+		return value, nil
 	}
 
-	value, err = s.Morph(value)
-	if err != nil {
-		return err
-	}
-
-	s.Value = value
-	return nil
+	return s.Morph(value)
 }
 
 // Flags returns the passed in set of variadic arguments
@@ -283,12 +285,6 @@ func StringFlag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		return s, nil
 	}
 	return impl
@@ -298,6 +294,7 @@ func StringFlag(ops ...FlagOption) *FlagImpl {
 func TBoolFlag(ops ...FlagOption) *FlagImpl {
 	impl := new(FlagImpl)
 	impl.Type = TBool
+	impl.Default = true
 	for _, op := range ops {
 		op(impl)
 	}
@@ -305,12 +302,6 @@ func TBoolFlag(ops ...FlagOption) *FlagImpl {
 	impl.Value = true
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseBool(s)
 		if err != nil {
 			return nil, errors.New("not a bool")
@@ -324,17 +315,12 @@ func TBoolFlag(ops ...FlagOption) *FlagImpl {
 func BoolFlag(ops ...FlagOption) *FlagImpl {
 	impl := new(FlagImpl)
 	impl.Type = Bool
+	impl.Default = false
 	for _, op := range ops {
 		op(impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseBool(s)
 		if err != nil {
 			return nil, errors.New("not a bool")
@@ -353,12 +339,6 @@ func DurationFlag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := time.ParseDuration(s)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -377,12 +357,6 @@ func Int8Flag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseInt(s, 10, 8)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -401,12 +375,6 @@ func Int16Flag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseInt(s, 10, 16)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -425,12 +393,6 @@ func IntFlag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.Atoi(s)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -449,12 +411,6 @@ func Float64Flag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseFloat(s, 64)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -473,12 +429,6 @@ func Float32Flag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseFloat(s, 32)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -497,12 +447,6 @@ func Int64Flag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -521,12 +465,6 @@ func Int32Flag(ops ...FlagOption) *FlagImpl {
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
-		if impl.Validation != nil {
-			if err := impl.Validation(s, rem...); err != nil {
-				return nil, err
-			}
-		}
-
 		myValue, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return nil, errors.New("not a int")
@@ -717,16 +655,27 @@ func (c *ctxImpl) IsSet(key string) bool {
 }
 
 func (c *ctxImpl) process(arg *argv.Argv, flags []Flag) error {
+	if c.pairs == nil {
+		c.flags = map[string]struct{}{}
+		c.pairs = map[string]interface{}{}
+	}
+
 	for _, flag := range flags {
 		c.flags[flag.FlagName()] = struct{}{}
 		c.flags[flag.FlagAlias()] = struct{}{}
 		if flagValue, provided := arg.Pairs[flag.FlagName()]; provided {
-			c.pairs[flag.FlagName()] = flagValue
+			value, err := flag.Parse(flagValue[0], flagValue[1:]...);
+			if err != nil {
+				return err
+			}
+			c.pairs[flag.FlagName()] = value
+			c.pairs[flag.FlagAlias()] = value
 			continue
 		}
-		if flagValue, provided := arg.Pairs[flag.FlagName()]; provided {
-			c.pairs[flag.FlagName()] = flagValue
-			continue
+
+		if flag.DefaultValue() != nil {
+			c.pairs[flag.FlagName()] = flag.DefaultValue()
+			c.pairs[flag.FlagAlias()] = flag.DefaultValue()
 		}
 	}
 	return nil
@@ -763,11 +712,13 @@ func Usage(desc string) CommandFunc {
 	}
 }
 
-// SubCommand adds giving commands into command list of
+// SubCommands adds giving commands into command list of
 // parent.
-func SubCommand(cm ...Command) CommandFunc {
+func SubCommands(cms ...Command) CommandFunc {
 	return func(cmd *Command) {
-		cmd.Commands = append(cmd.Commands, cm...)
+		for _, cm := range cms {
+			cmd.Commands[cm.Name] = cm
+		}
 	}
 }
 
@@ -783,11 +734,11 @@ type Command struct {
 	Action       Action
 	Flags        []Flag
 	Usages       []string
-	Commands     []Command
 	FlagUsage    string
 	CommandUsage string
 	Stderr       io.Writer
 	Stdout       io.Writer
+	Commands     map[string]Command
 }
 
 // Run executes giving command with argv.Argv object.
@@ -813,7 +764,15 @@ func (c *Command) Run(arg *argv.Argv, parent Context) error {
 		return err
 	}
 
+	// if we are dealing with possible tree then go down the tree.
 	if arg.Sub != nil {
+		return c.runSubCommand(arg.Sub, &childCtx)
+	}
+
+	// if we are dealing with the final argv, then is the it's text
+	// value a command also, if it is, make a new chain and pass it on.
+	if _, ok := c.Commands[arg.Text]; ok {
+		arg.Sub = argv.New(arg.Text)
 		return c.runSubCommand(arg.Sub, &childCtx)
 	}
 
@@ -846,10 +805,10 @@ func Commands(cmds ...Command) []Command {
 // Cmd returns a new Command from the provided options.
 func Cmd(name string, ops ...CommandFunc) Command {
 	cm := Command{
-		Stderr: os.Stderr,
-		Stdout: os.Stdout,
-		Name:   strings.ToLower(name),
-		Flags:  []Flag{helpFlag, timeoutFlag},
+		Stderr:   os.Stderr,
+		Stdout:   os.Stdout,
+		Commands: map[string]Command{},
+		Name:     strings.ToLower(name),
 	}
 
 	for _, op := range ops {
@@ -861,7 +820,7 @@ func Cmd(name string, ops ...CommandFunc) Command {
 		if err := tml.Execute(&bu, struct {
 			Title    string
 			Cmd      Command
-			Commands []Command
+			Commands map[string]Command
 		}{
 			Cmd:      cm,
 			Title:    cm.Name,
@@ -877,8 +836,10 @@ func Cmd(name string, ops ...CommandFunc) Command {
 		var bu bytes.Buffer
 		if err := tml.Execute(&bu, struct {
 			Title    string
-			Commands []Command
+			Cmd      Command
+			Commands map[string]Command
 		}{
+			Cmd:      cm,
 			Title:    cm.Name,
 			Commands: cm.Commands,
 		}); err != nil {
@@ -899,6 +860,7 @@ func Run(title string, flags []Flag, cmds []Command) {
 	commands := map[string]Command{}
 
 	flags = append(flags, helpFlag)
+	flags = append(flags, printFlag)
 	flags = append(flags, timeoutFlag)
 
 	// Register all flags first.
@@ -907,19 +869,43 @@ func Run(title string, flags []Flag, cmds []Command) {
 	}
 
 	var cmdHelp string
-	if tml, err := template.New("command.Usage").Funcs(defs).Parse(usageTml); err == nil {
-		var bu bytes.Buffer
-		if err := tml.Execute(&bu, struct {
-			Title string
-			Cmd   []Command
-		}{
-			Title: title,
-			Cmd:   cmds,
-		}); err != nil {
-			log.Fatal("Failed to generated help message for command: ", err)
-		}
-		cmdHelp = bu.String()
+	var flagHelp string
+
+	tml, err := template.New("command.Usage").Funcs(defs).Parse(usageTml)
+	if err != nil {
+		log.Fatal("Failed to create template instance: ", err)
 	}
+
+	tmlflags, err := template.New("flags.Usage").Funcs(defs).Parse(flagOnlyUsageTml)
+	if err != nil {
+		log.Fatal("Failed to create template instance: ", err)
+	}
+
+	var bu bytes.Buffer
+	if err := tml.Execute(&bu, struct {
+		Title    string
+		Commands []Command
+		Flags    []Flag
+	}{
+		Title:    title,
+		Flags:    flags,
+		Commands: cmds,
+	}); err != nil {
+		log.Fatal("Failed to generated help message for command: ", err)
+	}
+	cmdHelp = bu.String()
+
+	bu.Reset()
+	if err := tmlflags.Execute(&bu, struct {
+		Title string
+		Flags []Flag
+	}{
+		Title: title,
+		Flags: flags,
+	}); err != nil {
+		log.Fatal("Failed to generated help message for command: ", err)
+	}
+	flagHelp = bu.String()
 
 	args := strings.Join(os.Args, " ")
 	carg, err := argv.Parse(args)
@@ -928,7 +914,23 @@ func Run(title string, flags []Flag, cmds []Command) {
 		return
 	}
 
-	if carg.HasKV("h") || carg.HasKV("help") || carg.Sub == nil {
+	// if we are dealing with the final argv, then is the it's text
+	// value a command also, if it is, make a new chain and pass it on.
+	if _, ok := commands[carg.Text]; ok {
+		carg.Sub = argv.New(carg.Text)
+	}
+
+	if carg.HasKV("h") || carg.HasKV("help") {
+		fmt.Fprint(os.Stderr, cmdHelp)
+		return
+	}
+
+	if carg.HasKV("flags") {
+		fmt.Fprint(os.Stderr, flagHelp)
+		return
+	}
+
+	if carg.Sub == nil {
 		fmt.Fprint(os.Stderr, cmdHelp)
 		return
 	}

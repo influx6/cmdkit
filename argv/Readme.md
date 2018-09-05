@@ -1,7 +1,7 @@
 Argv
 ----------
 Argv provides a commandline argument parser using a subcommand approach where users can layer subcommands
-as single line calls.
+as single line calls. Be aware that the position of the flags (i.e those with `--` or `-` prefix) matters.
 
 ## Install
 
