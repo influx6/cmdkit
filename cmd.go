@@ -844,8 +844,8 @@ func Commands(cmds ...Command) []Command {
 }
 
 // Cmd returns a new Command from the provided options.
-func Cmd(name string, ops ...CommandFunc) *Command {
-	cm := &Command{
+func Cmd(name string, ops ...CommandFunc) Command {
+	cm := Command{
 		Stderr: os.Stderr,
 		Stdout: os.Stdout,
 		Name:   strings.ToLower(name),
@@ -853,14 +853,14 @@ func Cmd(name string, ops ...CommandFunc) *Command {
 	}
 
 	for _, op := range ops {
-		op(cm)
+		op(&cm)
 	}
 
 	if tml, err := template.New("command.Usage").Funcs(defs).Parse(cmdUsageTml); err == nil {
 		var bu bytes.Buffer
 		if err := tml.Execute(&bu, struct {
 			Title    string
-			Cmd      *Command
+			Cmd      Command
 			Commands []Command
 		}{
 			Cmd:      cm,
