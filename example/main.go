@@ -14,6 +14,17 @@ func main() {
 			cmdkit.WithAction(func(ctx cmdkit.Context) error {
 				fmt.Printf("Welcome to add: %q -> %d \n", ctx.String("name"), ctx.Int("age"))
 				return nil
-			})),
+			}),
+			cmdkit.SubCommands(
+				cmdkit.Cmd(
+					"broc",
+					cmdkit.Desc("displays a broc message"),
+					cmdkit.WithAction(func(ctx cmdkit.Context) error {
+						fmt.Printf("Welcome to bro adder: %q -> %d \n", ctx.String("name"), ctx.Int("age"))
+						return nil
+					}),
+				),
+			),
+		),
 	))
 }
