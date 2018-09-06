@@ -142,7 +142,6 @@ type Flag struct {
 	Alias      string
 	Env        string
 	Desc       string
-	Type       FlagType
 	Value      interface{}
 	Default    interface{}
 	Morph      MorphFunction
@@ -241,10 +240,169 @@ func Flags(flags ...Flag) []Flag {
 	return flags
 }
 
+// MakeFlag creates a flag for list of list strings.
+func MakeFlag(ops ...FlagOption) Flag {
+	var impl Flag
+	for _, op := range ops {
+		op(&impl)
+	}
+	return impl
+}
+
+// Int64ListFlag creates a flag for list of int64.
+func Int64ListFlag(ops ...FlagOption) Flag {
+	impl := MakeFlag(ops...)
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		if impl.Validation != nil {
+			if err := impl.Validation(s, rem...); err != nil {
+				return nil, err
+			}
+		}
+
+		initial, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		elem := make([]int64, 0, 1+len(rem))
+		elem = append(elem, initial)
+
+		for _, item := range rem {
+			conv, err := strconv.ParseInt(item, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			elem = append(elem, conv)
+		}
+		return elem, nil
+	}
+	return impl
+}
+
+// Float64ListFlag creates a flag for list of list float64.
+func Float64ListFlag(ops ...FlagOption) Flag {
+	impl := MakeFlag(ops...)
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		if impl.Validation != nil {
+			if err := impl.Validation(s, rem...); err != nil {
+				return nil, err
+			}
+		}
+
+		initial, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		elem := make([]float64, 0, 1+len(rem))
+		elem = append(elem, initial)
+
+		for _, item := range rem {
+			conv, err := strconv.ParseFloat(item, 64)
+			if err != nil {
+				return nil, err
+			}
+			elem = append(elem, conv)
+		}
+		return elem, nil
+	}
+	return impl
+}
+
+// BoolListFlag creates a flag for list of bool.
+func BoolListFlag(ops ...FlagOption) Flag {
+	impl := MakeFlag(ops...)
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		if impl.Validation != nil {
+			if err := impl.Validation(s, rem...); err != nil {
+				return nil, err
+			}
+		}
+
+		initial, err := strconv.ParseBool(s)
+		if err != nil {
+			return nil, err
+		}
+
+		elem := make([]bool, 0, 1+len(rem))
+		elem = append(elem, initial)
+
+		for _, item := range rem {
+			conv, err := strconv.ParseBool(item)
+			if err != nil {
+				return nil, err
+			}
+			elem = append(elem, conv)
+		}
+		return elem, nil
+	}
+	return impl
+}
+
+// UIntListFlag creates a flag for list of uint.
+func UIntListFlag(ops ...FlagOption) Flag {
+	impl := MakeFlag(ops...)
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		if impl.Validation != nil {
+			if err := impl.Validation(s, rem...); err != nil {
+				return nil, err
+			}
+		}
+
+		initial, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		elem := make([]uint, 0, 1+len(rem))
+		elem = append(elem, uint(initial))
+
+		for _, item := range rem {
+			conv, err := strconv.ParseUint(item, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			elem = append(elem, uint(conv))
+		}
+		return elem, nil
+	}
+	return impl
+}
+
+// IntListFlag creates a flag for list of int.
+func IntListFlag(ops ...FlagOption) Flag {
+	impl := MakeFlag(ops...)
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		if impl.Validation != nil {
+			if err := impl.Validation(s, rem...); err != nil {
+				return nil, err
+			}
+		}
+
+		initial, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		elem := make([]int, 0, 1+len(rem))
+		elem = append(elem, int(initial))
+
+		for _, item := range rem {
+			conv, err := strconv.ParseInt(item, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			elem = append(elem, int(conv))
+		}
+		return elem, nil
+	}
+	return impl
+}
+
 // StringListFlag creates a flag for list of list strings.
 func StringListFlag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = String
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -264,7 +422,7 @@ func StringListFlag(ops ...FlagOption) Flag {
 // StringFlag creates a flag for strings.
 func StringFlag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = String
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -278,7 +436,7 @@ func StringFlag(ops ...FlagOption) Flag {
 // TBoolFlag creates a flag for duration.
 func TBoolFlag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = TBool
+
 	impl.Default = true
 	for _, op := range ops {
 		op(&impl)
@@ -299,7 +457,7 @@ func TBoolFlag(ops ...FlagOption) Flag {
 // BoolFlag creates a flag for duration.
 func BoolFlag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Bool
+
 	impl.Default = false
 	for _, op := range ops {
 		op(&impl)
@@ -318,7 +476,7 @@ func BoolFlag(ops ...FlagOption) Flag {
 // DurationFlag creates a flag for duration.
 func DurationFlag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Duration
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -336,7 +494,7 @@ func DurationFlag(ops ...FlagOption) Flag {
 // Int8Flag creates a flag for int8.
 func Int8Flag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Int8
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -354,7 +512,7 @@ func Int8Flag(ops ...FlagOption) Flag {
 // Int16Flag creates a flag for int16.
 func Int16Flag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Int16
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -372,7 +530,7 @@ func Int16Flag(ops ...FlagOption) Flag {
 // IntFlag creates a flag for int.
 func IntFlag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Int
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -390,7 +548,7 @@ func IntFlag(ops ...FlagOption) Flag {
 // Float64Flag creates a flag for int.
 func Float64Flag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Float64
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -408,7 +566,7 @@ func Float64Flag(ops ...FlagOption) Flag {
 // Float32Flag creates a flag for int.
 func Float32Flag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Float32
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -426,7 +584,7 @@ func Float32Flag(ops ...FlagOption) Flag {
 // Int64Flag creates a flag for int.
 func Int64Flag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Int64
+
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -444,7 +602,7 @@ func Int64Flag(ops ...FlagOption) Flag {
 // Int32Flag creates a flag for int.
 func Int32Flag(ops ...FlagOption) Flag {
 	var impl Flag
-	impl.Type = Int32
+
 	for _, op := range ops {
 		op(&impl)
 	}
