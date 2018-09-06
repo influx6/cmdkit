@@ -47,3 +47,31 @@ func main() {
 		))
 }
 ```
+
+The code above produces the ff:
+
+````bash
+Usage: example [flags] [command] 
+
+⡿ COMMANDS:
+
+	⠙ add        displays a add message
+
+⡿ HELP:
+
+	Run [command] --help to print this message
+	Run example --flags to print all flags of all commands.
+
+⡿ Flags:
+	
+	⠙ age  (int)          
+	
+	⠙ name  (string)          
+	
+	⠙ help  (bool)          
+	
+	⠙ flags  (bool)          
+	
+	⠙ timeout  (time.Duration)          
+	
+````
