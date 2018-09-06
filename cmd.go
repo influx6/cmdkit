@@ -32,7 +32,7 @@ const (
 
 ⡿ Flags:
 	{{ range $_, $fl := .Flags }}
-	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})     {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ --{{toLower $fl.FlagName}}  ({{.TypeString}})  {{ if .Default }}Default: {{.Default}}{{end}}  {{ if .Desc }}Desc: {{.Desc}}{{end}}
 	{{end}}
 
 `
@@ -40,7 +40,7 @@ const (
 
 ⡿ Flags:
 	{{$title := toLower .Title}}{{$cmdName := .Cmd.Name}}{{ range $_, $fl := .Cmd.Flags }}
-	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})     {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ --{{toLower $fl.FlagName}}  ({{.TypeString}})  {{ if .Default }}Default: {{.Default}}{{end}}  {{ if .Desc }}Desc: {{.Desc}}{{end}}
 	{{end}}
 `
 
@@ -48,7 +48,7 @@ const (
 
 ⡿ Flags:
 	{{ range $_, $fl := .Flags }}
-	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})     {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ --{{toLower $fl.FlagName}}  ({{.TypeString}})  {{ if .Default }}Default: {{.Default}}{{end}}  {{ if .Desc }}Desc: {{.Desc}}{{end}}
 	{{end}}
 `
 
@@ -66,7 +66,7 @@ const (
 
 ⡿ Flags:
 	{{$title := toLower .Title}}{{$cmdName := .Cmd.Name}}{{ range $_, $fl := .Cmd.Flags }}
-	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})    {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ --{{toLower $fl.FlagName}}  ({{.TypeString}})  {{ if .Default }}Default: {{.Default}}{{end}}  {{ if .Desc }}Desc: {{.Desc}}{{end}}
 	{{end}}
 ⡿ Examples:
 	{{ range $_, $content := .Cmd.Usages }}
@@ -78,16 +78,16 @@ const (
 	{{end}}
 ⡿ SUB COMMANDS:{{ range .Commands }}
 
-	⠙ {{toLower .Name }}        {{if isEmpty .ShortDesc }}{{cutoff .Desc 100 }}{{else}}{{cutoff .ShortDesc 100 }}{{end}}
+	⠙ {{toLower .Name }}       {{if isEmpty .ShortDesc }}{{cutoff .Desc 100 }}{{else}}{{cutoff .ShortDesc 100 }}{{end}}
 {{end}}
 
 `
 )
 
 var (
-	printFlag   = BoolFlag(FlagName("flags"))
-	helpFlag    = BoolFlag(FlagName("help"), FlagAlias("h"))
-	timeoutFlag = DurationFlag(FlagName("timeout"), FlagAlias("tm"))
+	printFlag   = BoolFlag(FlagName("flags"), FlagDesc("Show all commands flags"))
+	helpFlag    = BoolFlag(FlagName("help"), FlagAlias("h"), FlagDesc("Show command help message"))
+	timeoutFlag = DurationFlag(FlagName("timeout"), FlagAlias("tm"), FlagDesc("set timeout for command context"))
 
 	defs = template.FuncMap{
 		"toLower": strings.ToLower,
