@@ -26,6 +26,7 @@ const (
 	⠙ {{toLower .Name }}        {{if isEmpty .ShortDesc }}{{cutoff .Desc 100 }}{{else}}{{cutoff .ShortDesc 100 }}{{end}}
 {{end}}
 ⡿ HELP:
+
 	Run [command] --help to print this message
 	Run {{toLower .Title}} --flags to print all flags of all commands.
 
@@ -54,9 +55,11 @@ const (
 	cmdUsageTml = `Command: {{toLower .Cmd.Name}} [flags] [sub commands]
 
 ⡿ DESC:
+
 	{{.Cmd.Desc}}
 
 ⡿ HELP:
+
 	Run {{toLower .Cmd.Name}} --help to print this message.
 	Run {{toLower .Cmd.Name}} [command] --help to print help for sub command.
 
@@ -73,6 +76,7 @@ const (
 	⠙ {{$title}} --{{toLower $fl.FlagName}}={{.Default}} {{toLower $cmdName}} 
 	{{end}}
 ⡿ SUB COMMANDS:{{ range .Commands }}
+
 	⠙ {{toLower .Name }}        {{if isEmpty .ShortDesc }}{{cutoff .Desc 100 }}{{else}}{{cutoff .ShortDesc 100 }}{{end}}
 {{end}}
 
@@ -129,20 +133,11 @@ type ParseFunction func(string, ...string) (interface{}, error)
 // value and transforms it into another value.
 type MorphFunction func(interface{}) (interface{}, error)
 
-// Flag defines a interface exposing a single function for parsing
-// a giving flag for attaching and data collection.
-type Flag interface {
-	FlagAlias() string
-	FlagName() string
-	DefaultValue() interface{}
-	Parse(string, ...string) (interface{}, error)
-}
-
 // FlagOption defines a function type which takes a giving flagimpl.
-type FlagOption func(*FlagImpl)
+type FlagOption func(*Flag)
 
-// FlagImpl implements a structure for parsing string flags.
-type FlagImpl struct {
+// Flag implements a structure for parsing string flags.
+type Flag struct {
 	Name       string
 	Alias      string
 	Env        string
@@ -157,71 +152,71 @@ type FlagImpl struct {
 
 // Validate returns a FlagOption that sets the ValueValidation function.
 func Validate(n ValueValidation) FlagOption {
-	return func(fl *FlagImpl) {
+	return func(fl *Flag) {
 		fl.Validation = n
 	}
 }
 
-// Morph sets giving MorphFunction for giving FlagImpl.
+// Morph sets giving MorphFunction for giving Flag.
 func Morph(n MorphFunction) FlagOption {
-	return func(fl *FlagImpl) {
+	return func(fl *Flag) {
 		fl.Morph = n
 	}
 }
 
-// Default returns a FlagOption that sets the desc of a FlagImpl.
+// Default returns a FlagOption that sets the desc of a Flag.
 func Default(n interface{}) FlagOption {
-	return func(fl *FlagImpl) {
+	return func(fl *Flag) {
 		fl.Default = n
 	}
 }
 
-// FlagDesc returns a FlagOption that sets the desc of a FlagImpl.
+// FlagDesc returns a FlagOption that sets the desc of a Flag.
 func FlagDesc(s string) FlagOption {
-	return func(fl *FlagImpl) {
+	return func(fl *Flag) {
 		fl.Desc = s
 	}
 }
 
-// FlagAlias returns a FlagOption that sets the alias of a FlagImpl.
+// FlagAlias returns a FlagOption that sets the alias of a Flag.
 func FlagAlias(s string) FlagOption {
-	return func(fl *FlagImpl) {
+	return func(fl *Flag) {
 		fl.Alias = s
 	}
 }
 
-// FlagName returns a FlagOption that sets the name of a FlagImpl.
+// FlagName returns a FlagOption that sets the name of a Flag.
 func FlagName(s string) FlagOption {
-	return func(fl *FlagImpl) {
+	return func(fl *Flag) {
 		fl.Name = s
 	}
 }
 
 // Env provides a means to setting the environment variable name
-// for a FlagImpl.
+// for a Flag.
 func Env(s string) FlagOption {
-	return func(fl *FlagImpl) {
+	return func(fl *Flag) {
 		fl.Env = s
 	}
 }
 
 // FlagAlias returns alias of flag.
-func (s *FlagImpl) FlagAlias() string {
+func (s *Flag) FlagAlias() string {
 	return s.Alias
 }
 
 // FlagName returns name of flag.
-func (s *FlagImpl) FlagName() string {
+func (s *Flag) FlagName() string {
 	return s.Name
 }
 
 // DefaultValue returns Default value of flag pointer.
-func (s *FlagImpl) DefaultValue() interface{} {
+func (s *Flag) DefaultValue() interface{} {
 	return s.Default
 }
 
 // Parse sets the underline flag ready for value receiving.
-func (s *FlagImpl) Parse(m string, rest ...string) (interface{}, error) {
+func (s *Flag) Parse(m string, rest ...string) (interface{}, error) {
 	if s.Validation != nil {
 		if err := s.Validation(m, rest...); err != nil {
 			return nil, err
@@ -246,22 +241,12 @@ func Flags(flags ...Flag) []Flag {
 	return flags
 }
 
-// NewFlag returns a new instance of FlagImpl with FlagOptions applied.
-func NewFlag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
-	impl.Type = String
-	for _, op := range ops {
-		op(impl)
-	}
-	return impl
-}
-
 // StringListFlag creates a flag for list of list strings.
-func StringListFlag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func StringListFlag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = String
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -277,11 +262,11 @@ func StringListFlag(ops ...FlagOption) *FlagImpl {
 }
 
 // StringFlag creates a flag for strings.
-func StringFlag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func StringFlag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = String
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -291,12 +276,12 @@ func StringFlag(ops ...FlagOption) *FlagImpl {
 }
 
 // TBoolFlag creates a flag for duration.
-func TBoolFlag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func TBoolFlag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = TBool
 	impl.Default = true
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Value = true
@@ -312,12 +297,12 @@ func TBoolFlag(ops ...FlagOption) *FlagImpl {
 }
 
 // BoolFlag creates a flag for duration.
-func BoolFlag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func BoolFlag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Bool
 	impl.Default = false
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -331,11 +316,11 @@ func BoolFlag(ops ...FlagOption) *FlagImpl {
 }
 
 // DurationFlag creates a flag for duration.
-func DurationFlag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func DurationFlag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Duration
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -349,11 +334,11 @@ func DurationFlag(ops ...FlagOption) *FlagImpl {
 }
 
 // Int8Flag creates a flag for int8.
-func Int8Flag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func Int8Flag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Int8
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -367,11 +352,11 @@ func Int8Flag(ops ...FlagOption) *FlagImpl {
 }
 
 // Int16Flag creates a flag for int16.
-func Int16Flag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func Int16Flag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Int16
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -385,11 +370,11 @@ func Int16Flag(ops ...FlagOption) *FlagImpl {
 }
 
 // IntFlag creates a flag for int.
-func IntFlag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func IntFlag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Int
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -403,11 +388,11 @@ func IntFlag(ops ...FlagOption) *FlagImpl {
 }
 
 // Float64Flag creates a flag for int.
-func Float64Flag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func Float64Flag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Float64
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -421,11 +406,11 @@ func Float64Flag(ops ...FlagOption) *FlagImpl {
 }
 
 // Float32Flag creates a flag for int.
-func Float32Flag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func Float32Flag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Float32
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -439,11 +424,11 @@ func Float32Flag(ops ...FlagOption) *FlagImpl {
 }
 
 // Int64Flag creates a flag for int.
-func Int64Flag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func Int64Flag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Int64
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -457,11 +442,11 @@ func Int64Flag(ops ...FlagOption) *FlagImpl {
 }
 
 // Int32Flag creates a flag for int.
-func Int32Flag(ops ...FlagOption) *FlagImpl {
-	impl := new(FlagImpl)
+func Int32Flag(ops ...FlagOption) Flag {
+	var impl Flag
 	impl.Type = Int32
 	for _, op := range ops {
-		op(impl)
+		op(&impl)
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -664,7 +649,7 @@ func (c *ctxImpl) process(arg *argv.Argv, flags []Flag) error {
 		c.flags[flag.FlagName()] = struct{}{}
 		c.flags[flag.FlagAlias()] = struct{}{}
 		if flagValue, provided := arg.Pairs[flag.FlagName()]; provided {
-			value, err := flag.Parse(flagValue[0], flagValue[1:]...);
+			value, err := flag.Parse(flagValue[0], flagValue[1:]...)
 			if err != nil {
 				return err
 			}
@@ -672,7 +657,15 @@ func (c *ctxImpl) process(arg *argv.Argv, flags []Flag) error {
 			c.pairs[flag.FlagAlias()] = value
 			continue
 		}
-
+		if flag.Env != "" {
+			value, err := flag.Parser(os.Getenv(flag.Env))
+			if err != nil {
+				return err
+			}
+			c.pairs[flag.FlagName()] = value
+			c.pairs[flag.FlagAlias()] = value
+			continue
+		}
 		if flag.DefaultValue() != nil {
 			c.pairs[flag.FlagName()] = flag.DefaultValue()
 			c.pairs[flag.FlagAlias()] = flag.DefaultValue()
@@ -882,7 +875,7 @@ func Run(title string, flags []Flag, cmds []Command) {
 	}
 
 	var bu bytes.Buffer
-	if err := tml.Execute(&bu, struct {
+	if err = tml.Execute(&bu, struct {
 		Title    string
 		Commands []Command
 		Flags    []Flag
@@ -896,7 +889,7 @@ func Run(title string, flags []Flag, cmds []Command) {
 	cmdHelp = bu.String()
 
 	bu.Reset()
-	if err := tmlflags.Execute(&bu, struct {
+	if err = tmlflags.Execute(&bu, struct {
 		Title string
 		Flags []Flag
 	}{
