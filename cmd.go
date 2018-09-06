@@ -28,7 +28,7 @@ const (
 ⡿ HELP:
 
 	Run [command] --help to print this message
-	Run {{toLower .Title}} --flags to print all flags of all commands.
+	Run {{toLower .Title}} --flags to print all flags of command.
 
 ⡿ Flags:
 	{{ range $_, $fl := .Flags }}
@@ -61,6 +61,7 @@ const (
 ⡿ HELP:
 
 	Run {{toLower .Cmd.Name}} --help to print this message.
+	Run {{toLower .Cmd.Name}} --flags to print command's flags.
 	Run {{toLower .Cmd.Name}} [command] --help to print help for sub command.
 
 ⡿ Flags:
