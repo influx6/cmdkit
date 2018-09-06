@@ -125,11 +125,61 @@ const (
 	IntList
 	Int64List
 	UIntList
+	UInt64List
 	BoolList
 	StringList
 	Float64List
 	DurationList
 )
+
+// TypeString returns name of flag.
+func (s FlagType) TypeString() string {
+	switch s {
+	case UInt:
+		return "uint"
+	case Int:
+		return "int"
+	case Int8:
+		return "int8"
+	case Int32:
+		return "int32"
+	case UInt64:
+		return "uint64"
+	case Int16:
+		return "int16"
+	case Int64:
+		return "int64"
+	case Bool:
+		return "bool"
+	case TBool:
+		return "bool"
+	case String:
+		return "string"
+	case Float32:
+		return "float32"
+	case Float64:
+		return "float64"
+	case Duration:
+		return "time.Duration"
+	case UIntList:
+		return "[]uint"
+	case UInt64List:
+		return "[]uint64"
+	case IntList:
+		return "[]int"
+	case Int64List:
+		return "[]int64"
+	case BoolList:
+		return "[]bool"
+	case StringList:
+		return "[]string"
+	case Float64List:
+		return "[]int64"
+	case DurationList:
+		return "[]time.Duration"
+	}
+	return "unknown"
+}
 
 // ValueValidation defines a function type for the purpose
 // of validating a giving string input.
@@ -216,49 +266,7 @@ func (s *Flag) FlagAlias() string {
 
 // TypeString returns name of flag.
 func (s *Flag) TypeString() string {
-	switch s.Type {
-	case UInt:
-		return "uint"
-	case Int:
-		return "int"
-	case Int8:
-		return "int8"
-	case Int32:
-		return "int32"
-	case UInt64:
-		return "uint64"
-	case Int16:
-		return "int16"
-	case Int64:
-		return "int64"
-	case Bool:
-		return "bool"
-	case TBool:
-		return "bool"
-	case String:
-		return "string"
-	case Float32:
-		return "float32"
-	case Float64:
-		return "float64"
-	case Duration:
-		return "time.Duration"
-	case UIntList:
-		return "[]uint"
-	case IntList:
-		return "[]int"
-	case Int64List:
-		return "[]int64"
-	case BoolList:
-		return "[]bool"
-	case StringList:
-		return "[]string"
-	case Float64List:
-		return "[]int64"
-	case DurationList:
-		return "[]time.Duration"
-	}
-	return ""
+	return s.Type.TypeString()
 }
 
 // FlagName returns name of flag.
@@ -302,6 +310,42 @@ func MakeFlag(ops ...FlagOption) Flag {
 	var impl Flag
 	for _, op := range ops {
 		op(&impl)
+	}
+	return impl
+}
+
+// UInt64ListFlag creates a flag for list of uint64.
+func UInt64ListFlag(ops ...FlagOption) Flag {
+	impl := MakeFlag(ops...)
+	impl.Type = UInt64List
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]uint64); !ok {
+			log.Fatalf("Flag %q must use type []int64 default value types", impl.Name)
+		}
+	}
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		if impl.Validation != nil {
+			if err := impl.Validation(s, rem...); err != nil {
+				return nil, err
+			}
+		}
+
+		initial, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		elem := make([]uint64, 0, 1+len(rem))
+		elem = append(elem, initial)
+
+		for _, item := range rem {
+			conv, err := strconv.ParseUint(item, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			elem = append(elem, conv)
+		}
+		return elem, nil
 	}
 	return impl
 }
@@ -635,7 +679,7 @@ func DurationFlag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := time.ParseDuration(s)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, err
 		}
 		return myValue, nil
 	}
@@ -659,9 +703,9 @@ func Int8Flag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseInt(s, 10, 8)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, errors.New("not a int8")
 		}
-		return myValue, nil
+		return int8(myValue), nil
 	}
 	return impl
 }
@@ -683,9 +727,57 @@ func Int16Flag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseInt(s, 10, 16)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, err
+		}
+		return int16(myValue), nil
+	}
+	return impl
+}
+
+// UInt64Flag creates a flag for int.
+func UInt64Flag(ops ...FlagOption) Flag {
+	var impl Flag
+	impl.Type = UInt
+	for _, op := range ops {
+		op(&impl)
+	}
+
+	if impl.Default != nil {
+		if _, ok := impl.Default.(uint64); !ok {
+			log.Fatalf("Flag %q must use type uint64 default value types", impl.Name)
+		}
+	}
+
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		myValue, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return nil, errors.New("not a uint64")
 		}
 		return myValue, nil
+	}
+	return impl
+}
+
+// UIntFlag creates a flag for int.
+func UIntFlag(ops ...FlagOption) Flag {
+	var impl Flag
+	impl.Type = UInt
+	for _, op := range ops {
+		op(&impl)
+	}
+
+	if impl.Default != nil {
+		if _, ok := impl.Default.(uint); !ok {
+			log.Fatalf("Flag %q must use type uint default value types", impl.Name)
+		}
+	}
+
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		myValue, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return nil, errors.New("not a uint")
+		}
+		return uint(myValue), nil
 	}
 	return impl
 }
@@ -707,7 +799,7 @@ func IntFlag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.Atoi(s)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, err
 		}
 		return myValue, nil
 	}
@@ -731,7 +823,7 @@ func Float64Flag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, err
 		}
 		return myValue, nil
 	}
@@ -755,9 +847,9 @@ func Float32Flag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseFloat(s, 32)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, err
 		}
-		return myValue, nil
+		return float32(myValue), nil
 	}
 	return impl
 }
@@ -779,7 +871,7 @@ func Int64Flag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, err
 		}
 		return myValue, nil
 	}
@@ -803,9 +895,9 @@ func Int32Flag(ops ...FlagOption) Flag {
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, errors.New("not a int")
+			return nil, err
 		}
-		return myValue, nil
+		return int32(myValue), nil
 	}
 	return impl
 }
