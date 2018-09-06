@@ -32,7 +32,7 @@ const (
 
 ⡿ Flags:
 	{{ range $_, $fl := .Flags }}
-	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})     {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
 	{{end}}
 
 `
@@ -40,7 +40,7 @@ const (
 
 ⡿ Flags:
 	{{$title := toLower .Title}}{{$cmdName := .Cmd.Name}}{{ range $_, $fl := .Cmd.Flags }}
-	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})     {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
 	{{end}}
 `
 
@@ -48,7 +48,7 @@ const (
 
 ⡿ Flags:
 	{{ range $_, $fl := .Flags }}
-	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})     {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
 	{{end}}
 `
 
@@ -65,7 +65,7 @@ const (
 
 ⡿ Flags:
 	{{$title := toLower .Title}}{{$cmdName := .Cmd.Name}}{{ range $_, $fl := .Cmd.Flags }}
-	⠙ {{toLower $fl.FlagName}}      {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
+	⠙ {{toLower $fl.FlagName}}  ({{.TypeString}})    {{ if .Default }} Default: {{.Default}} {{end}}     {{ if .Desc }} Desc: {{.Desc}} {{end}}
 	{{end}}
 ⡿ Examples:
 	{{ range $_, $content := .Cmd.Usages }}
@@ -109,16 +109,25 @@ type FlagType int
 // lists of flag types.
 const (
 	Int FlagType = iota + 1
+	UInt
 	Int8
 	Int32
 	Int16
 	Int64
+	UInt64
 	Bool
 	TBool
 	String
 	Float32
 	Float64
 	Duration
+	IntList
+	Int64List
+	UIntList
+	BoolList
+	StringList
+	Float64List
+	DurationList
 )
 
 // ValueValidation defines a function type for the purpose
@@ -135,18 +144,6 @@ type MorphFunction func(interface{}) (interface{}, error)
 
 // FlagOption defines a function type which takes a giving flagimpl.
 type FlagOption func(*Flag)
-
-// Flag implements a structure for parsing string flags.
-type Flag struct {
-	Name       string
-	Alias      string
-	Env        string
-	Desc       string
-	Default    interface{}
-	Morph      MorphFunction
-	Parser     ParseFunction
-	Validation ValueValidation
-}
 
 // Validate returns a FlagOption that sets the ValueValidation function.
 func Validate(n ValueValidation) FlagOption {
@@ -198,9 +195,69 @@ func Env(s string) FlagOption {
 	}
 }
 
+// Flag implements a structure for parsing string flags.
+type Flag struct {
+	Name       string
+	Alias      string
+	Env        string
+	Desc       string
+	Type       FlagType
+	Default    interface{}
+	Morph      MorphFunction
+	Parser     ParseFunction
+	Validation ValueValidation
+}
+
 // FlagAlias returns alias of flag.
 func (s *Flag) FlagAlias() string {
 	return s.Alias
+}
+
+// TypeString returns name of flag.
+func (s *Flag) TypeString() string {
+	switch s.Type {
+	case UInt:
+		return "uint"
+	case Int:
+		return "int"
+	case Int8:
+		return "int8"
+	case Int32:
+		return "int32"
+	case UInt64:
+		return "uint64"
+	case Int16:
+		return "int16"
+	case Int64:
+		return "int64"
+	case Bool:
+		return "bool"
+	case TBool:
+		return "bool"
+	case String:
+		return "string"
+	case Float32:
+		return "float32"
+	case Float64:
+		return "float64"
+	case Duration:
+		return "time.Duration"
+	case UIntList:
+		return "[]uint"
+	case IntList:
+		return "[]int"
+	case Int64List:
+		return "[]int64"
+	case BoolList:
+		return "[]bool"
+	case StringList:
+		return "[]string"
+	case Float64List:
+		return "[]int64"
+	case DurationList:
+		return "[]time.Duration"
+	}
+	return ""
 }
 
 // FlagName returns name of flag.
@@ -251,6 +308,7 @@ func MakeFlag(ops ...FlagOption) Flag {
 // Int64ListFlag creates a flag for list of int64.
 func Int64ListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	impl.Type = Int64List
 	if impl.Default != nil {
 		if _, ok := impl.Default.([]int64); !ok {
 			log.Fatalf("Flag %q must use type []int64 default value types", impl.Name)
@@ -286,6 +344,7 @@ func Int64ListFlag(ops ...FlagOption) Flag {
 // Float64ListFlag creates a flag for list of list float64.
 func Float64ListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	impl.Type = Float64List
 	if impl.Default != nil {
 		if _, ok := impl.Default.([]float64); !ok {
 			log.Fatalf("Flag %q must use type []float64 default value types", impl.Name)
@@ -321,6 +380,7 @@ func Float64ListFlag(ops ...FlagOption) Flag {
 // BoolListFlag creates a flag for list of bool.
 func BoolListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	impl.Type = BoolList
 	if impl.Default != nil {
 		if _, ok := impl.Default.([]bool); !ok {
 			log.Fatalf("Flag %q must use type []bool default value types", impl.Name)
@@ -356,6 +416,7 @@ func BoolListFlag(ops ...FlagOption) Flag {
 // UIntListFlag creates a flag for list of uint.
 func UIntListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	impl.Type = UIntList
 	if impl.Default != nil {
 		if _, ok := impl.Default.([]uint); !ok {
 			log.Fatalf("Flag %q must use type []uint default value types", impl.Name)
@@ -388,9 +449,46 @@ func UIntListFlag(ops ...FlagOption) Flag {
 	return impl
 }
 
+// DurationListFlag creates a flag for list of time.Duration.
+func DurationListFlag(ops ...FlagOption) Flag {
+	impl := MakeFlag(ops...)
+	impl.Type = DurationList
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]time.Duration); !ok {
+			log.Fatalf("Flag %q must use type []time.Duration default value types", impl.Name)
+		}
+	}
+	impl.Parser = func(s string, rem ...string) (interface{}, error) {
+		if impl.Validation != nil {
+			if err := impl.Validation(s, rem...); err != nil {
+				return nil, err
+			}
+		}
+
+		initial, err := time.ParseDuration(s)
+		if err != nil {
+			return nil, err
+		}
+
+		elem := make([]time.Duration, 0, 1+len(rem))
+		elem = append(elem, initial)
+
+		for _, item := range rem {
+			conv, err := time.ParseDuration(item)
+			if err != nil {
+				return nil, err
+			}
+			elem = append(elem, conv)
+		}
+		return elem, nil
+	}
+	return impl
+}
+
 // IntListFlag creates a flag for list of int.
 func IntListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	impl.Type = IntList
 	if impl.Default != nil {
 		if _, ok := impl.Default.([]int); !ok {
 			log.Fatalf("Flag %q must use type []int default value types", impl.Name)
@@ -426,7 +524,7 @@ func IntListFlag(ops ...FlagOption) Flag {
 // StringListFlag creates a flag for list of list strings.
 func StringListFlag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = StringList
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -452,7 +550,7 @@ func StringListFlag(ops ...FlagOption) Flag {
 // StringFlag creates a flag for strings.
 func StringFlag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = String
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -472,6 +570,7 @@ func StringFlag(ops ...FlagOption) Flag {
 // TBoolFlag creates a flag for duration.
 func TBoolFlag(ops ...FlagOption) Flag {
 	var impl Flag
+	impl.Type = TBool
 	impl.Default = true
 	for _, op := range ops {
 		op(&impl)
@@ -496,7 +595,7 @@ func TBoolFlag(ops ...FlagOption) Flag {
 // BoolFlag creates a flag for duration.
 func BoolFlag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Bool
 	impl.Default = false
 	for _, op := range ops {
 		op(&impl)
@@ -521,7 +620,7 @@ func BoolFlag(ops ...FlagOption) Flag {
 // DurationFlag creates a flag for duration.
 func DurationFlag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Duration
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -545,7 +644,7 @@ func DurationFlag(ops ...FlagOption) Flag {
 // Int8Flag creates a flag for int8.
 func Int8Flag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Int8
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -569,7 +668,7 @@ func Int8Flag(ops ...FlagOption) Flag {
 // Int16Flag creates a flag for int16.
 func Int16Flag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Int16
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -593,7 +692,7 @@ func Int16Flag(ops ...FlagOption) Flag {
 // IntFlag creates a flag for int.
 func IntFlag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Int
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -617,7 +716,7 @@ func IntFlag(ops ...FlagOption) Flag {
 // Float64Flag creates a flag for int.
 func Float64Flag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Float64
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -641,7 +740,7 @@ func Float64Flag(ops ...FlagOption) Flag {
 // Float32Flag creates a flag for int.
 func Float32Flag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Float32
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -665,7 +764,7 @@ func Float32Flag(ops ...FlagOption) Flag {
 // Int64Flag creates a flag for int.
 func Int64Flag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Int64
 	for _, op := range ops {
 		op(&impl)
 	}
@@ -689,7 +788,7 @@ func Int64Flag(ops ...FlagOption) Flag {
 // Int32Flag creates a flag for int.
 func Int32Flag(ops ...FlagOption) Flag {
 	var impl Flag
-
+	impl.Type = Int32
 	for _, op := range ops {
 		op(&impl)
 	}
