@@ -816,7 +816,7 @@ func (c *ctxImpl) process(arg *argv.Argv, flags []Flag) error {
 			continue
 		}
 		if flag.Env != "" {
-			value, err := flag.Parser(os.Getenv(flag.Env))
+			value, err := flag.Parse(os.Getenv(flag.Env))
 			if err != nil {
 				return err
 			}
