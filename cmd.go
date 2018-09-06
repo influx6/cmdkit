@@ -142,7 +142,6 @@ type Flag struct {
 	Alias      string
 	Env        string
 	Desc       string
-	Value      interface{}
 	Default    interface{}
 	Morph      MorphFunction
 	Parser     ParseFunction
@@ -252,6 +251,11 @@ func MakeFlag(ops ...FlagOption) Flag {
 // Int64ListFlag creates a flag for list of int64.
 func Int64ListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]int64); !ok {
+			log.Fatalf("Flag %q must use type []int64 default value types", impl.Name)
+		}
+	}
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		if impl.Validation != nil {
 			if err := impl.Validation(s, rem...); err != nil {
@@ -282,6 +286,11 @@ func Int64ListFlag(ops ...FlagOption) Flag {
 // Float64ListFlag creates a flag for list of list float64.
 func Float64ListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]float64); !ok {
+			log.Fatalf("Flag %q must use type []float64 default value types", impl.Name)
+		}
+	}
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		if impl.Validation != nil {
 			if err := impl.Validation(s, rem...); err != nil {
@@ -312,6 +321,11 @@ func Float64ListFlag(ops ...FlagOption) Flag {
 // BoolListFlag creates a flag for list of bool.
 func BoolListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]bool); !ok {
+			log.Fatalf("Flag %q must use type []bool default value types", impl.Name)
+		}
+	}
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		if impl.Validation != nil {
 			if err := impl.Validation(s, rem...); err != nil {
@@ -342,6 +356,11 @@ func BoolListFlag(ops ...FlagOption) Flag {
 // UIntListFlag creates a flag for list of uint.
 func UIntListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]uint); !ok {
+			log.Fatalf("Flag %q must use type []uint default value types", impl.Name)
+		}
+	}
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		if impl.Validation != nil {
 			if err := impl.Validation(s, rem...); err != nil {
@@ -372,6 +391,11 @@ func UIntListFlag(ops ...FlagOption) Flag {
 // IntListFlag creates a flag for list of int.
 func IntListFlag(ops ...FlagOption) Flag {
 	impl := MakeFlag(ops...)
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]int); !ok {
+			log.Fatalf("Flag %q must use type []int default value types", impl.Name)
+		}
+	}
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		if impl.Validation != nil {
 			if err := impl.Validation(s, rem...); err != nil {
@@ -407,6 +431,12 @@ func StringListFlag(ops ...FlagOption) Flag {
 		op(&impl)
 	}
 
+	if impl.Default != nil {
+		if _, ok := impl.Default.([]string); !ok {
+			log.Fatalf("Flag %q must use type []string default value types", impl.Name)
+		}
+	}
+
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		if impl.Validation != nil {
 			if err := impl.Validation(s, rem...); err != nil {
@@ -427,6 +457,12 @@ func StringFlag(ops ...FlagOption) Flag {
 		op(&impl)
 	}
 
+	if impl.Default != nil {
+		if _, ok := impl.Default.(string); !ok {
+			log.Fatalf("Flag %q must use type string default value types", impl.Name)
+		}
+	}
+
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		return s, nil
 	}
@@ -436,13 +472,16 @@ func StringFlag(ops ...FlagOption) Flag {
 // TBoolFlag creates a flag for duration.
 func TBoolFlag(ops ...FlagOption) Flag {
 	var impl Flag
-
 	impl.Default = true
 	for _, op := range ops {
 		op(&impl)
 	}
 
-	impl.Value = true
+	if impl.Default != nil {
+		if _, ok := impl.Default.(bool); !ok {
+			log.Fatalf("Flag %q must use type bool default value types", impl.Name)
+		}
+	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseBool(s)
@@ -463,6 +502,12 @@ func BoolFlag(ops ...FlagOption) Flag {
 		op(&impl)
 	}
 
+	if impl.Default != nil {
+		if _, ok := impl.Default.(bool); !ok {
+			log.Fatalf("Flag %q must use type bool default value types", impl.Name)
+		}
+	}
+
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseBool(s)
 		if err != nil {
@@ -479,6 +524,12 @@ func DurationFlag(ops ...FlagOption) Flag {
 
 	for _, op := range ops {
 		op(&impl)
+	}
+
+	if impl.Default != nil {
+		if _, ok := impl.Default.(time.Duration); !ok {
+			log.Fatalf("Flag %q must use type time.Duration default value types", impl.Name)
+		}
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -499,6 +550,12 @@ func Int8Flag(ops ...FlagOption) Flag {
 		op(&impl)
 	}
 
+	if impl.Default != nil {
+		if _, ok := impl.Default.(int8); !ok {
+			log.Fatalf("Flag %q must use type int8 default value types", impl.Name)
+		}
+	}
+
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseInt(s, 10, 8)
 		if err != nil {
@@ -515,6 +572,12 @@ func Int16Flag(ops ...FlagOption) Flag {
 
 	for _, op := range ops {
 		op(&impl)
+	}
+
+	if impl.Default != nil {
+		if _, ok := impl.Default.(int16); !ok {
+			log.Fatalf("Flag %q must use type int16 default value types", impl.Name)
+		}
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -535,6 +598,12 @@ func IntFlag(ops ...FlagOption) Flag {
 		op(&impl)
 	}
 
+	if impl.Default != nil {
+		if _, ok := impl.Default.(int); !ok {
+			log.Fatalf("Flag %q must use type int default value types", impl.Name)
+		}
+	}
+
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.Atoi(s)
 		if err != nil {
@@ -551,6 +620,12 @@ func Float64Flag(ops ...FlagOption) Flag {
 
 	for _, op := range ops {
 		op(&impl)
+	}
+
+	if impl.Default != nil {
+		if _, ok := impl.Default.(float64); !ok {
+			log.Fatalf("Flag %q must use type float64 default value types", impl.Name)
+		}
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
@@ -571,6 +646,12 @@ func Float32Flag(ops ...FlagOption) Flag {
 		op(&impl)
 	}
 
+	if impl.Default != nil {
+		if _, ok := impl.Default.(float32); !ok {
+			log.Fatalf("Flag %q must use type float32 default value types", impl.Name)
+		}
+	}
+
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseFloat(s, 32)
 		if err != nil {
@@ -589,6 +670,12 @@ func Int64Flag(ops ...FlagOption) Flag {
 		op(&impl)
 	}
 
+	if impl.Default != nil {
+		if _, ok := impl.Default.(int64); !ok {
+			log.Fatalf("Flag %q must use type int64 default value types", impl.Name)
+		}
+	}
+
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
 		myValue, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
@@ -605,6 +692,12 @@ func Int32Flag(ops ...FlagOption) Flag {
 
 	for _, op := range ops {
 		op(&impl)
+	}
+
+	if impl.Default != nil {
+		if _, ok := impl.Default.(int32); !ok {
+			log.Fatalf("Flag %q must use type int32 default value types", impl.Name)
+		}
 	}
 
 	impl.Parser = func(s string, rem ...string) (interface{}, error) {
